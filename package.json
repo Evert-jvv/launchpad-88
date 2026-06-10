@@ -1,7 +1,7 @@
 {
   "name": "lp88",
-  "version": "0.1.5",
-  "description": "Bootstrap a Codex/agent workflow into any project.",
+  "version": "0.1.10",
+  "description": "Launchpad-88: bootstrap a Codex/agent workflow into any project.",
   "type": "module",
   "bin": {
     "lp88": "bin/lp88.js"
@@ -23,7 +23,8 @@
     "codex",
     "agents",
     "cli",
-    "workflow"
+    "workflow",
+    "launchpad-88"
   ],
   "license": "MIT"
 }

@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
-import { chmod, copyFile, mkdir, readdir, readFile, stat } from "node:fs/promises";
+import { chmod, copyFile, mkdir, mkdtemp, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { constants, existsSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
@@ -33,8 +34,12 @@ const requiredFiles = [
   "scripts/audit.sh",
   "scripts/opensrc.sh",
   "scripts/ralphy.sh",
+  "docs/prd/current.md",
   ".github/workflows/ci.yml"
 ];
+
+const lp88ConfigFile = ".lp88/config.env";
+const ralphyConfigFile = ".ralphy/lp88.env";
 
 const scriptFiles = [
   "scripts/setup.sh",
@@ -61,6 +66,80 @@ const optionalTools = [
     packageName: "ralphy-cli",
     installArgs: ["install", "-g", "ralphy-cli"],
     source: "https://github.com/michaelshimeles/ralphy"
+  }
+];
+
+const ralphyEngines = [
+  {
+    key: "codex",
+    label: "Codex",
+    command: "codex",
+    flag: "--codex"
+  },
+  {
+    key: "cursor",
+    label: "Cursor agent",
+    command: "agent",
+    flag: "--cursor"
+  },
+  {
+    key: "claude",
+    label: "Claude Code",
+    command: "claude",
+    flag: "--claude"
+  },
+  {
+    key: "opencode",
+    label: "OpenCode",
+    command: "opencode",
+    flag: "--opencode"
+  },
+  {
+    key: "qwen",
+    label: "Qwen-Code",
+    command: "qwen",
+    flag: "--qwen"
+  },
+  {
+    key: "droid",
+    label: "Factory Droid",
+    command: "droid",
+    flag: "--droid"
+  },
+  {
+    key: "copilot",
+    label: "GitHub Copilot",
+    command: "copilot",
+    flag: "--copilot"
+  },
+  {
+    key: "gemini",
+    label: "Gemini CLI",
+    command: "gemini",
+    flag: "--gemini"
+  }
+];
+
+const planningAgents = [
+  {
+    key: "codex",
+    label: "Codex",
+    command: "codex"
+  },
+  {
+    key: "claude",
+    label: "Claude Code",
+    command: "claude"
+  },
+  {
+    key: "gemini",
+    label: "Gemini CLI",
+    command: "gemini"
+  },
+  {
+    key: "opencode",
+    label: "OpenCode",
+    command: "opencode"
   }
 ];
 
@@ -165,6 +244,8 @@ async function init(args) {
 
   if (!dryRun) {
     await offerOptionalToolInstalls({ skip: skipOptionalInstalls });
+    await offerLp88AgentConfig({ skip: skipOptionalInstalls, force });
+    await offerRalphyEngineConfig({ skip: skipOptionalInstalls, force });
     printNextSteps();
   }
 }
@@ -223,11 +304,20 @@ async function audit() {
 }
 
 async function plan(args) {
-  const task = args.join(" ").trim();
+  const parsed = parsePlanArgs(args);
+
+  if (parsed.error) {
+    console.error(parsed.error);
+    console.error("");
+    printPlanUsage();
+    process.exitCode = 1;
+    return;
+  }
+
+  const task = parsed.task;
 
   if (!task) {
-    console.log('Usage: lp88 plan "<task>"');
-    console.log('Example: lp88 plan "Improve onboarding flow"');
+    printPlanUsage();
     return;
   }
 
@@ -236,7 +326,251 @@ async function plan(args) {
     ? prompt.replaceAll("{{TASK}}", task)
     : `${prompt.trimEnd()}\n\nTask:\n${task}`;
 
-  console.log(rendered.trimEnd());
+  if (!parsed.run) {
+    console.log(rendered.trimEnd());
+    return;
+  }
+
+  await runPlanWithAgent(rendered.trimEnd(), parsed);
+}
+
+function parsePlanArgs(args) {
+  const parsed = {
+    run: false,
+    stdout: false,
+    agent: null,
+    model: null,
+    outFile: "docs/prd/current.md",
+    taskParts: []
+  };
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (arg === "--run") {
+      parsed.run = true;
+    } else if (arg === "--stdout") {
+      parsed.stdout = true;
+    } else if (arg === "--agent") {
+      const value = args[index + 1];
+      if (!value) return { error: "--agent requires a value" };
+      parsed.agent = value;
+      index += 1;
+    } else if (arg === "--model") {
+      const value = args[index + 1];
+      if (!value) return { error: "--model requires a value" };
+      parsed.model = value;
+      index += 1;
+    } else if (arg === "--out") {
+      const value = args[index + 1];
+      if (!value) return { error: "--out requires a value" };
+      parsed.outFile = value;
+      index += 1;
+    } else if (arg.startsWith("--")) {
+      return { error: `Unknown plan option: ${arg}` };
+    } else {
+      parsed.taskParts.push(arg);
+    }
+  }
+
+  return {
+    ...parsed,
+    task: parsed.taskParts.join(" ").trim()
+  };
+}
+
+function printPlanUsage() {
+  console.log('Usage: lp88 plan [--run] [--agent codex|claude|gemini|opencode] [--model <model>] [--out <file>] "<task>"');
+  console.log('Example: lp88 plan "Improve onboarding flow"');
+  console.log('Example: lp88 plan --run --agent codex "Improve onboarding flow"');
+}
+
+async function runPlanWithAgent(prompt, options) {
+  const lp88Config = await readLp88Config(process.cwd());
+  const agent = options.agent ?? process.env.LP88_AGENT ?? lp88Config.agent ?? await detectPlanningAgent();
+  if (!agent) {
+    console.error("No supported AI agent CLI was detected.");
+    console.error("Install Codex, Claude Code, Gemini, or OpenCode, or pass --agent.");
+    process.exitCode = 1;
+    return;
+  }
+
+  const model = options.model ?? process.env.LP88_MODEL ?? lp88Config.model ?? null;
+  console.log(`Running planning prompt with ${agent}${model ? ` (${model})` : ""}...`);
+
+  const result = await runAgentCommand(agent, prompt, { model });
+  if (result.code !== 0) {
+    console.error(result.stderr.trim() || `${agent} exited with code ${result.code}`);
+    process.exitCode = result.code || 1;
+    return;
+  }
+
+  const output = result.output.trim();
+  if (!output) {
+    console.error(`${agent} returned no output.`);
+    process.exitCode = 1;
+    return;
+  }
+
+  if (options.stdout) {
+    console.log(output);
+    return;
+  }
+
+  const outFile = path.resolve(process.cwd(), options.outFile);
+  await mkdir(path.dirname(outFile), { recursive: true });
+  await writeFile(outFile, `${output}\n`);
+
+  console.log(`Wrote PRD and implementation plan: ${toDisplayPath(path.relative(process.cwd(), outFile))}`);
+  console.log("");
+  console.log("Next:");
+  console.log(`  Review ${toDisplayPath(path.relative(process.cwd(), outFile))}`);
+  console.log("  ./scripts/ralphy.sh");
+}
+
+async function detectPlanningAgent() {
+  if (await hasCommand("codex")) return "codex";
+  if (await hasCommand("claude")) return "claude";
+  if (await hasCommand("gemini")) return "gemini";
+  if (await hasCommand("opencode")) return "opencode";
+  return null;
+}
+
+async function runAgentCommand(agent, prompt, { model }) {
+  if (process.env.LP88_AGENT_COMMAND) {
+    return runCustomAgentCommand(process.env.LP88_AGENT_COMMAND, prompt);
+  }
+
+  if (agent === "codex") {
+    return runCodexPlan(prompt, { model });
+  }
+
+  if (agent === "claude") {
+    return runCapturedCommand("claude", [
+      "--print",
+      ...(model ? ["--model", model] : []),
+      "--output-format",
+      "text",
+      "--permission-mode",
+      "plan",
+      prompt
+    ]);
+  }
+
+  if (agent === "gemini") {
+    return runCapturedCommand("gemini", [
+      ...(model ? ["--model", model] : []),
+      "--prompt",
+      prompt,
+      "--approval-mode",
+      "plan",
+      "--output-format",
+      "text"
+    ]);
+  }
+
+  if (agent === "opencode") {
+    return runCapturedCommand("opencode", [
+      "run",
+      ...(model ? ["--model", model] : []),
+      prompt
+    ]);
+  }
+
+  if (agent === "cursor") {
+    return {
+      code: 1,
+      output: "",
+      stderr: "Cursor plan runner is not configured yet. Set LP88_AGENT_COMMAND to the noninteractive Cursor command for your setup."
+    };
+  }
+
+  return {
+    code: 1,
+    output: "",
+    stderr: `Unsupported planning agent: ${agent}. Supported built-ins: codex, claude, gemini, opencode.`
+  };
+}
+
+async function runCodexPlan(prompt, { model }) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "lp88-plan-"));
+  const outputFile = path.join(tempDir, "plan.md");
+  const result = await runCapturedCommand("codex", [
+    "exec",
+    "--cd",
+    process.cwd(),
+    "--sandbox",
+    "read-only",
+    "--output-last-message",
+    outputFile,
+    ...(model ? ["--model", model] : []),
+    prompt
+  ]);
+
+  if (result.code !== 0) {
+    return result;
+  }
+
+  if (existsSync(outputFile)) {
+    return {
+      ...result,
+      output: await readFile(outputFile, "utf8")
+    };
+  }
+
+  return result;
+}
+
+async function runCustomAgentCommand(command, prompt) {
+  const parts = command.split(" ").filter(Boolean);
+  if (parts.length === 0) {
+    return {
+      code: 1,
+      output: "",
+      stderr: "LP88_AGENT_COMMAND is empty."
+    };
+  }
+
+  const renderedParts = parts.map((part) => part === "{prompt}" ? prompt : part);
+  if (!parts.includes("{prompt}")) {
+    renderedParts.push(prompt);
+  }
+
+  return runCapturedCommand(renderedParts[0], renderedParts.slice(1));
+}
+
+async function runCapturedCommand(command, args) {
+  return new Promise((resolve) => {
+    const child = spawn(command, args, {
+      cwd: process.cwd(),
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: false
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.on("error", (error) => {
+      resolve({
+        code: 1,
+        output: stdout,
+        stderr: error.message
+      });
+    });
+    child.on("close", (code) => {
+      resolve({
+        code: code ?? 1,
+        output: stdout,
+        stderr
+      });
+    });
+  });
 }
 
 async function loadPlanPrompt() {
@@ -287,6 +621,20 @@ async function doctor() {
     console.log("✅ opensrc CLI detected");
   } else {
     console.log("ℹ️ opensrc CLI not installed (optional; install with `npm install -g opensrc`)");
+  }
+
+  const configuredRalphyEngine = await readRalphyEngineConfig(process.cwd());
+  if (configuredRalphyEngine) {
+    console.log(`ℹ️ Ralphy engine preference: ${configuredRalphyEngine}`);
+  } else {
+    console.log("ℹ️ Ralphy engine preference not configured");
+  }
+
+  const lp88Config = await readLp88Config(process.cwd());
+  if (lp88Config.agent) {
+    console.log(`ℹ️ lp88 planning agent: ${lp88Config.agent}${lp88Config.model ? ` (${lp88Config.model})` : ""}`);
+  } else {
+    console.log("ℹ️ lp88 planning agent not configured");
   }
 
   console.log("");
@@ -405,6 +753,217 @@ async function installOptionalTool(tool) {
   });
 }
 
+async function offerLp88AgentConfig({ skip, force }) {
+  if (skip) {
+    return;
+  }
+
+  const configFile = path.join(process.cwd(), lp88ConfigFile);
+  if (existsSync(configFile) && !force) {
+    console.log("");
+    console.log(`lp88 planning agent already exists: ${lp88ConfigFile}`);
+    return;
+  }
+
+  const detected = await detectPlanningAgentOptions();
+
+  if (detected.length === 0) {
+    if (process.stdin.isTTY && process.stdout.isTTY) {
+      console.log("");
+      console.log("No supported lp88 planning agent CLI was detected.");
+      console.log(`Install Codex or Gemini, then edit ${lp88ConfigFile}.`);
+    }
+    return;
+  }
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    console.log("");
+    console.log("Detected lp88 planning agents:");
+    for (const engine of detected) {
+      console.log(`  ${engine.key}: ${engine.label}`);
+    }
+    console.log(`To set a default, create ${lp88ConfigFile} with LP88_AGENT=<agent>.`);
+    return;
+  }
+
+  console.log("");
+  console.log("Detected lp88 planning agents:");
+  detected.forEach((engine, index) => {
+    console.log(`  ${index + 1}. ${engine.label} (${engine.key})`);
+  });
+  console.log("  0. Do not configure a planning agent");
+
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  try {
+    const answer = await rl.question("Choose the default lp88 planning agent for this project [0] ");
+    const selectedIndex = Number.parseInt(answer.trim() || "0", 10);
+    if (!Number.isInteger(selectedIndex) || selectedIndex <= 0 || selectedIndex > detected.length) {
+      console.log("Skipped lp88 planning agent preference.");
+      return;
+    }
+
+    const selected = detected[selectedIndex - 1];
+    let model = "";
+    const modelAnswer = await rl.question(`Default model for ${selected.key}? Leave blank for CLI default. `);
+    model = modelAnswer.trim();
+
+    await writeLp88Config({ agent: selected.key, model }, { force });
+  } finally {
+    rl.close();
+  }
+}
+
+async function offerRalphyEngineConfig({ skip, force }) {
+  if (skip) {
+    return;
+  }
+
+  const configFile = path.join(process.cwd(), ralphyConfigFile);
+  if (existsSync(configFile) && !force) {
+    console.log("");
+    console.log(`Ralphy engine preference already exists: ${ralphyConfigFile}`);
+    return;
+  }
+
+  const detected = await detectAgentCliOptions();
+
+  if (detected.length === 0) {
+    if (process.stdin.isTTY && process.stdout.isTTY) {
+      console.log("");
+      console.log("No Ralphy-compatible AI engine CLI was detected.");
+      console.log(`Install Codex, Cursor agent, Claude Code, or another supported CLI, then edit ${ralphyConfigFile}.`);
+    }
+    return;
+  }
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    console.log("");
+    console.log("Detected Ralphy-compatible AI engines:");
+    for (const engine of detected) {
+      console.log(`  ${engine.key}: ${engine.label}`);
+    }
+    console.log(`To set a default, create ${ralphyConfigFile} with RALPHY_ENGINE=<engine>.`);
+    return;
+  }
+
+  console.log("");
+  console.log("Detected Ralphy-compatible AI engines:");
+  detected.forEach((engine, index) => {
+    console.log(`  ${index + 1}. ${engine.label} (${engine.key})`);
+  });
+  console.log("  0. Do not configure a Ralphy engine");
+
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  try {
+    const answer = await rl.question("Choose the default Ralphy engine for this project [0] ");
+    const selectedIndex = Number.parseInt(answer.trim() || "0", 10);
+    if (!Number.isInteger(selectedIndex) || selectedIndex <= 0 || selectedIndex > detected.length) {
+      console.log("Skipped Ralphy engine preference.");
+      return;
+    }
+
+    await writeRalphyEngineConfig(detected[selectedIndex - 1], { force });
+  } finally {
+    rl.close();
+  }
+}
+
+async function detectAgentCliOptions() {
+  const detected = [];
+  for (const engine of ralphyEngines) {
+    if (await hasCommand(engine.command)) {
+      detected.push(engine);
+    }
+  }
+  return detected;
+}
+
+async function detectPlanningAgentOptions() {
+  const detected = [];
+  for (const agent of planningAgents) {
+    if (await hasCommand(agent.command)) {
+      detected.push(agent);
+    }
+  }
+  return detected;
+}
+
+async function writeLp88Config({ agent, model }, { force }) {
+  const configFile = path.join(process.cwd(), lp88ConfigFile);
+  if (existsSync(configFile) && !force) {
+    return;
+  }
+
+  await mkdir(path.dirname(configFile), { recursive: true });
+  await writeFile(configFile, [
+    "# lp88 preferences",
+    "# Edit this file or override these values in the shell before running lp88 plan --run.",
+    `LP88_AGENT="\${LP88_AGENT:-${agent}}"`,
+    `LP88_MODEL="\${LP88_MODEL:-${model}}"`,
+    ""
+  ].join("\n"));
+  console.log(`Saved lp88 planning agent: ${agent}${model ? ` (${model})` : ""} (${lp88ConfigFile})`);
+}
+
+async function writeRalphyEngineConfig(engine, { force }) {
+  const configFile = path.join(process.cwd(), ralphyConfigFile);
+  if (existsSync(configFile) && !force) {
+    return;
+  }
+
+  await mkdir(path.dirname(configFile), { recursive: true });
+  await writeFile(configFile, [
+    "# lp88 Ralphy preferences",
+    "# Edit this file or override these values in the shell before running ./scripts/ralphy.sh.",
+    `RALPHY_ENGINE="\${RALPHY_ENGINE:-${engine.key}}"`,
+    "RALPHY_MODEL=\"${RALPHY_MODEL:-}\"",
+    ""
+  ].join("\n"));
+  console.log(`Saved Ralphy engine preference: ${engine.key} (${ralphyConfigFile})`);
+}
+
+async function readLp88Config(root) {
+  const configFile = path.join(root, lp88ConfigFile);
+  if (!existsSync(configFile)) {
+    return {};
+  }
+
+  const config = await readFile(configFile, "utf8");
+  return {
+    agent: readShellDefault(config, "LP88_AGENT"),
+    model: readShellDefault(config, "LP88_MODEL")
+  };
+}
+
+async function readRalphyEngineConfig(root) {
+  const configFile = path.join(root, ralphyConfigFile);
+  if (!existsSync(configFile)) {
+    return null;
+  }
+
+  const config = await readFile(configFile, "utf8");
+  return readShellDefault(config, "RALPHY_ENGINE") ?? "configured";
+}
+
+function readShellDefault(config, name) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const defaultMatch = config.match(new RegExp(`${escaped}=["']?\\$\\{${escaped}:-([^}"']*)}`));
+  if (defaultMatch) {
+    return defaultMatch[1] || null;
+  }
+
+  const directMatch = config.match(new RegExp(`${escaped}=["']?([^"'\\n]+)`));
+  return directMatch?.[1] ?? null;
+}
+
 function hasGitRepo(start) {
   let current = start;
 
@@ -422,7 +981,7 @@ function printRequiredCheck(ok, label) {
 
 function printNextSteps() {
   console.log("");
-  console.log("lp88 installed the agent workflow.");
+  console.log("Launchpad-88 installed the agent workflow.");
   console.log("");
   console.log("Next:");
   console.log("  lp88 doctor");
@@ -436,7 +995,7 @@ function printNextSteps() {
 function printHelp() {
   console.log(`lp88
 
-Bootstrap a Codex/agent workflow into the current project.
+Launchpad-88: bootstrap a Codex/agent workflow into the current project.
 
 Usage:
   lp88 init
@@ -445,6 +1004,7 @@ Usage:
   lp88 init --no-optional-installs
   lp88 audit
   lp88 plan "<task>"
+  lp88 plan --run "<task>"
   lp88 doctor
   lp88 help
   lp88 --help
@@ -453,7 +1013,7 @@ Usage:
 Commands:
   init       Copy AGENTS.md, Codex prompts, skills, scripts, and CI into this project.
   audit      Run ./scripts/audit.sh.
-  plan       Print a Codex-ready planning prompt for a task.
+  plan       Print or run a planning prompt for a task.
   doctor     Check whether the lp88 workflow files are installed.
   help       Show this help text.
 
@@ -461,6 +1021,7 @@ Examples:
   npx lp88 init
   lp88 doctor
   lp88 plan "Improve onboarding flow"
+  lp88 plan --run --agent codex "Improve onboarding flow"
   lp88 audit`);
 }
 

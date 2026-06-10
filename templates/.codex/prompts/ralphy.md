@@ -11,4 +11,5 @@ Rules:
 - Use MAX_ITERATIONS=3 by default.
 - Require Ralphy CLI from https://github.com/michaelshimeles/ralphy.
 - Install command is npm install -g ralphy-cli.
+- Check .ralphy/lp88.env for RALPHY_ENGINE and RALPHY_MODEL preferences.
 - Do not run scripts/ralphy.sh unless explicitly approved.

@@ -1,12 +1,14 @@
 # lp88
 
-`lp88` is a small npm CLI that installs a repeatable Codex and coding-agent workflow into any project.
+`lp88` stands for **Launchpad-88**.
+
+Launchpad-88 is a small npm CLI that installs a repeatable Codex and coding-agent workflow into any project.
 
 It creates the project instructions, Codex prompts, local skills, scripts, and CI guardrails I want in every repo so the next agent starts with the same rules instead of rediscovering them.
 
 ## Why it exists
 
-`lp88` does not replace Codex. It installs the project instructions and guardrails Codex should use.
+Launchpad-88 does not replace Codex. It installs the project instructions and guardrails Codex should use.
 
 - `lp88 plan` prints a Codex-ready planning prompt.
 - `lp88 audit` runs deterministic local checks.
@@ -28,6 +30,11 @@ During interactive init, lp88 offers to install optional external tools:
 - `opensrc`, from https://github.com/vercel-labs/opensrc
 - `ralphy-cli`, from https://github.com/michaelshimeles/ralphy
 
+If supported AI CLIs are detected, lp88 also offers to save:
+
+- a default lp88 planning agent in `.lp88/config.env`
+- a default Ralphy engine in `.ralphy/lp88.env`
+
 Skip those prompts with:
 
 ```sh
@@ -47,6 +54,7 @@ lp88 --version
 npx lp88 init
 lp88 doctor
 lp88 plan "Improve onboarding flow"
+lp88 plan --run --agent codex "Improve onboarding flow"
 lp88 audit
 ```
 
@@ -66,6 +74,7 @@ npx lp88 init --force
 npx lp88 init --no-optional-installs
 npx lp88 audit
 npx lp88 plan "<task>"
+npx lp88 plan --run "<task>"
 npx lp88 doctor
 npx lp88 help
 lp88 --help
@@ -76,7 +85,9 @@ lp88 --version
 
 `lp88 audit` runs `./scripts/audit.sh`. If the script is missing, run `lp88 init` first.
 
-`lp88 plan "task"` prints a prompt you can paste into Codex. It uses `.codex/prompts/plan.md` from the current project when present, otherwise it falls back to lp88's vendored template. It does not require Codex to be installed.
+`lp88 plan "task"` prints a prompt you can paste into an agent. It asks the agent to return a combined PRD and implementation plan that can be saved to `docs/prd/current.md`. It uses `.codex/prompts/plan.md` from the current project when present, otherwise it falls back to lp88's vendored template. It does not require Codex to be installed.
+
+`lp88 plan --run "task"` calls a configured AI agent CLI directly and writes the returned PRD and implementation plan to `docs/prd/current.md`. Built-in runners currently support `codex` and `gemini`.
 
 `lp88 doctor` checks whether the expected workflow files exist, whether scripts are executable, whether a package manager and git repo are detected, and whether CI is present.
 
@@ -85,6 +96,8 @@ It also reports optional external tools:
 ```text
 ✅ opensrc CLI detected
 ℹ️ Ralphy CLI not installed (optional; install with `npm install -g ralphy-cli`)
+ℹ️ lp88 planning agent: codex
+ℹ️ Ralphy engine preference: codex
 ```
 
 ## Recommended Workflow
@@ -92,10 +105,13 @@ It also reports optional external tools:
 1. Create or open a project.
 2. Run `npx lp88 init`.
 3. Run `lp88 doctor`.
-4. Run `lp88 audit`.
-5. Open Codex and ask it to use AGENTS.md and the relevant skill.
-6. Use Greptile/greploop for PR review fixes.
-7. Use Ralphy only for bounded implementation loops after a PRD exists.
+4. Run `lp88 plan --run "<task>"` to generate `docs/prd/current.md`.
+5. Or run `lp88 plan "<task>"` and paste the output into your agent manually.
+6. Review and approve the plan before implementation.
+7. Run `lp88 audit`.
+8. Open Codex and ask it to use AGENTS.md and the relevant skill.
+9. Use Greptile/greploop for PR review fixes.
+10. Use Ralphy only for bounded implementation loops after a PRD exists.
 
 ## Using With Codex
 
@@ -105,7 +121,7 @@ After initialization, start Codex in the project and point it at the installed f
 Use AGENTS.md and skills/audit-repo/SKILL.md. Run ./scripts/audit.sh and give me a prioritized improvement plan.
 ```
 
-For planning, run:
+For planning without calling an agent, run:
 
 ```sh
 lp88 plan "Improve onboarding flow"
@@ -119,16 +135,35 @@ Use AGENTS.md, skills/plan-project/SKILL.md, and skills/code-structure/SKILL.md.
 Task:
 Improve onboarding flow
 
-Return:
-- goal
-- assumptions
-- architecture impact
-- implementation plan
-- files likely to change
-- tests required
-- security risks
-- rollout plan
-- recommended first PR
+Return a combined PRD and implementation plan that can be saved to:
+
+  docs/prd/current.md
+
+Use this structure:
+
+# PRD
+
+## Goal
+
+## User / Actor
+
+## Problem
+
+## Requirements
+
+## Acceptance Criteria
+
+# Implementation Plan
+
+## Assumptions
+
+## Architecture Impact
+
+## Files Likely To Change
+
+## Implementation Steps
+
+## Tests Required
 
 Rules:
 - Do not implement yet.
@@ -137,6 +172,74 @@ Rules:
 ```
 
 Paste that output into Codex. Codex should return the plan; it should not start implementing until you approve the plan.
+
+After you approve it, save the returned PRD and implementation plan to:
+
+```text
+docs/prd/current.md
+```
+
+That file is the default input for:
+
+```sh
+./scripts/ralphy.sh
+```
+
+To have lp88 call the agent directly, run:
+
+```sh
+lp88 plan --run --agent codex "Improve onboarding flow"
+```
+
+That writes the agent output to:
+
+```text
+docs/prd/current.md
+```
+
+Built-in planning agents:
+
+```text
+codex
+claude
+gemini
+opencode
+```
+
+If `--agent` is omitted, lp88 uses:
+
+1. `--agent`
+2. `LP88_AGENT`
+3. `.lp88/config.env`
+4. detected local CLIs
+
+You can pass a model:
+
+```sh
+lp88 plan --run --agent codex --model gpt-5.5 "Improve onboarding flow"
+lp88 plan --run --agent claude --model claude-sonnet-4-6 "Improve onboarding flow"
+lp88 plan --run --agent opencode --model anthropic/claude-sonnet-4-6 "Improve onboarding flow"
+```
+
+For agent CLIs without a built-in runner, set `LP88_AGENT_COMMAND`. Use `{prompt}` where lp88 should insert the generated prompt:
+
+```sh
+LP88_AGENT_COMMAND='my-agent --print {prompt}' lp88 plan --run "Improve onboarding flow"
+```
+
+Example `.lp88/config.env`:
+
+```sh
+LP88_AGENT="${LP88_AGENT:-codex}"
+LP88_MODEL="${LP88_MODEL:-gpt-5.5}"
+```
+
+The per-command flags always win:
+
+```sh
+lp88 plan --run --agent gemini "Improve onboarding flow"
+lp88 plan --run --agent codex --model gpt-5.5 "Improve onboarding flow"
+```
 
 ## Greptile And Greploop
 
@@ -194,6 +297,31 @@ The wrapper calls:
 
 ```sh
 ralphy --prd "$TASK_FILE" --max-iterations "$MAX_ITERATIONS"
+```
+
+You can configure the engine in `.ralphy/lp88.env`:
+
+```sh
+RALPHY_ENGINE="${RALPHY_ENGINE:-codex}"
+RALPHY_MODEL="${RALPHY_MODEL:-}"
+```
+
+Or override it per run:
+
+```sh
+RALPHY_ENGINE=cursor RALPHY_MODEL=composer-2.5 ./scripts/ralphy.sh docs/prd/current.md
+```
+
+Supported engine values:
+
+```text
+claude, codex, cursor, opencode, qwen, droid, copilot, gemini, default
+```
+
+With `RALPHY_ENGINE=codex`, the wrapper calls:
+
+```sh
+ralphy --codex --prd "$TASK_FILE" --max-iterations "$MAX_ITERATIONS"
 ```
 
 ## Code Structure Skill
