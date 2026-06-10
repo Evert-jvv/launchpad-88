@@ -85,13 +85,38 @@ After initialization, start Codex in the project and point it at the installed f
 Use AGENTS.md and skills/audit-repo/SKILL.md. Run ./scripts/audit.sh and give me a prioritized improvement plan.
 ```
 
-For planning:
+For planning, run:
 
 ```sh
 lp88 plan "Improve onboarding flow"
 ```
 
-Then paste the generated prompt into Codex.
+That prints a Codex-ready prompt like:
+
+```text
+Use AGENTS.md, skills/plan-project/SKILL.md, and skills/code-structure/SKILL.md.
+
+Task:
+Improve onboarding flow
+
+Return:
+- goal
+- assumptions
+- architecture impact
+- implementation plan
+- files likely to change
+- tests required
+- security risks
+- rollout plan
+- recommended first PR
+
+Rules:
+- Do not implement yet.
+- Ask only blocking questions.
+- Prefer small PR-sized changes.
+```
+
+Paste that output into Codex. Codex should return the plan; it should not start implementing until you approve the plan.
 
 ## Greptile And Greploop
 
