@@ -1,0 +1,29 @@
+{
+  "name": "lp88",
+  "version": "0.1.0",
+  "description": "Bootstrap a Codex/agent workflow into any project.",
+  "type": "module",
+  "bin": {
+    "lp88": "./bin/lp88.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "lint": "node --check bin/lp88.js",
+    "build": "node --check bin/lp88.js"
+  },
+  "files": [
+    "bin",
+    "templates",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "codex",
+    "agents",
+    "cli",
+    "workflow"
+  ],
+  "license": "MIT"
+}

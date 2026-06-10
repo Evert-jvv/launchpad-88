@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Detect package manager
+        id: pm
+        shell: bash
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            echo "name=pnpm" >> "$GITHUB_OUTPUT"
+          elif [ -f yarn.lock ]; then
+            echo "name=yarn" >> "$GITHUB_OUTPUT"
+          elif [ -f bun.lockb ] || [ -f bun.lock ]; then
+            echo "name=bun" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=npm" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Bun
+        if: steps.pm.outputs.name == 'bun'
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          if [ ! -f package.json ]; then
+            echo "No package.json found"
+            exit 0
+          fi
+
+          case "${{ steps.pm.outputs.name }}" in
+            pnpm) pnpm install --frozen-lockfile ;;
+            yarn) yarn install --immutable || yarn install --frozen-lockfile ;;
+            bun) bun install --frozen-lockfile ;;
+            npm) npm ci || npm install ;;
+          esac
+
+      - name: Lint
+        run: ./scripts/lint.sh
+
+      - name: Typecheck
+        run: ./scripts/typecheck.sh
+
+      - name: Test
+        run: ./scripts/test.sh
+
+      - name: Build
+        run: ./scripts/build.sh

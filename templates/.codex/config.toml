@@ -1,0 +1,12 @@
+model = "gpt-5.5"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[tools]
+web_search = false
+
+[history]
+persistence = "save-all"
+
+[project]
+name = "lp88-managed-project"
