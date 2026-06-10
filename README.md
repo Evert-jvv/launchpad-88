@@ -1,7 +1,5 @@
 # lp88
 
-`lp88` stands for **Launchpad-88**.
-
 Launchpad-88 is a small npm CLI that installs a repeatable AI-agent workflow into any project.
 
 It creates project instructions, reusable prompts, local skills, scripts, and CI guardrails so your configured agent starts with the same rules instead of rediscovering them.
