@@ -14,6 +14,21 @@ It creates the project instructions, Codex prompts, local skills, scripts, and C
 - Greploop is for bounded PR review and CI fix loops.
 - Ralphy is optional and should only be used after a clear PRD or issue exists.
 
+## Install
+
+Run without installing:
+
+```sh
+npx lp88 init
+```
+
+Or install globally:
+
+```sh
+npm install -g lp88
+lp88 --version
+```
+
 ## Usage
 
 ```sh
@@ -90,9 +105,27 @@ Use `skills/greploop/SKILL.md` when a PR has Greptile, CI, or reviewer feedback.
 
 ## Ralphy / Ralph Wiggum
 
-`skills/ralphy-run/SKILL.md` is a custom lp88 safety wrapper skill. It is not copied from upstream Ralphy documentation.
+`skills/ralphy-run/SKILL.md` is a custom lp88 safety wrapper skill around the upstream Ralphy project: https://github.com/michaelshimeles/ralphy
 
-Ralphy is an implementation grinder, not the architect. Use it only after a clear PRD, issue, or approved implementation plan exists. The template `scripts/ralphy.sh` contains a placeholder command until you provide the exact local Ralphy command.
+Ralphy is an implementation grinder, not the architect. Use it only after a clear PRD, issue, or approved implementation plan exists.
+
+`lp88` does not depend on Ralphy directly. To use the wrapper, install Ralphy separately:
+
+```sh
+npm install -g ralphy-cli
+```
+
+Then run:
+
+```sh
+MAX_ITERATIONS=3 ./scripts/ralphy.sh docs/prd/current.md
+```
+
+The wrapper calls:
+
+```sh
+ralphy --prd "$TASK_FILE" --max-iterations "$MAX_ITERATIONS"
+```
 
 ## Code Structure Skill
 

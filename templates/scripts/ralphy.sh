@@ -13,8 +13,14 @@ echo "Running bounded Ralphy loop"
 echo "Task: $TASK_FILE"
 echo "Max iterations: $MAX_ITERATIONS"
 
-# Replace this with the exact ralphy command installed locally.
-# ralphy --task "$TASK_FILE" --max-iterations "$MAX_ITERATIONS"
+if ! command -v ralphy >/dev/null 2>&1; then
+  echo "Ralphy CLI was not found."
+  echo "Install it with: npm install -g ralphy-cli"
+  echo "Source: https://github.com/michaelshimeles/ralphy"
+  exit 1
+fi
+
+ralphy --prd "$TASK_FILE" --max-iterations "$MAX_ITERATIONS"
 
 ./scripts/lint.sh || true
 ./scripts/typecheck.sh || true

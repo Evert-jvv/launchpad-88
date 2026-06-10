@@ -9,4 +9,6 @@ Rules:
 - Stop if scope is unclear.
 - Stop if auth/payment/data deletion/security-sensitive areas would be changed without approval.
 - Use MAX_ITERATIONS=3 by default.
+- Require Ralphy CLI from https://github.com/michaelshimeles/ralphy.
+- Install command is npm install -g ralphy-cli.
 - Do not run scripts/ralphy.sh unless explicitly approved.

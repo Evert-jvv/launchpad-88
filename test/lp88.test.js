@@ -55,6 +55,17 @@ test("init creates templates and executable scripts", async () => {
   });
 });
 
+test("init installs ralphy wrapper with upstream command", async () => {
+  await withTempProject(async (dir) => {
+    await runLp88(["init"], dir);
+
+    const script = await readFile(path.join(dir, "scripts", "ralphy.sh"), "utf8");
+
+    assert.match(script, /npm install -g ralphy-cli/);
+    assert.match(script, /ralphy --prd "\$TASK_FILE" --max-iterations "\$MAX_ITERATIONS"/);
+  });
+});
+
 test("init skips existing files unless force is used", async () => {
   await withTempProject(async (dir) => {
     await writeFile(path.join(dir, "AGENTS.md"), "custom\n");
@@ -149,6 +160,7 @@ test("doctor reports healthy after init in a git project", async () => {
     assert.equal(result.code, 0);
     assert.match(result.stdout, /✅ AGENTS\.md/);
     assert.match(result.stdout, /✅ Package manager detected: npm/);
+    assert.match(result.stdout, /Ralphy CLI/);
     assert.match(result.stdout, /Healthy/);
   });
 });

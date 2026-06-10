@@ -251,6 +251,13 @@ async function doctor() {
   if (!gitRepo) importantMissing = true;
   console.log(gitRepo ? "✅ Git repo detected" : "⚠️ No git repo detected");
 
+  const ralphyInstalled = await hasCommand("ralphy");
+  if (ralphyInstalled) {
+    console.log("✅ Ralphy CLI detected");
+  } else {
+    console.log("ℹ️ Ralphy CLI not installed (optional; install with `npm install -g ralphy-cli`)");
+  }
+
   console.log("");
   console.log(importantMissing ? "Needs attention" : "Healthy");
 }
@@ -271,6 +278,17 @@ function detectPackageManager(root) {
   if (existsSync(path.join(root, "bun.lockb")) || existsSync(path.join(root, "bun.lock"))) return "bun";
   if (existsSync(path.join(root, "package.json"))) return "npm";
   return null;
+}
+
+async function hasCommand(command) {
+  return new Promise((resolve) => {
+    const child = spawn("sh", ["-c", `command -v ${command} >/dev/null 2>&1`], {
+      stdio: "ignore"
+    });
+
+    child.on("error", () => resolve(false));
+    child.on("close", (code) => resolve(code === 0));
+  });
 }
 
 function hasGitRepo(start) {

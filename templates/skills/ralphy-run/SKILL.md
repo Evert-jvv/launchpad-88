@@ -9,6 +9,13 @@ Use this skill only after a clear PRD, issue, or implementation plan exists.
 
 Ralphy is an implementation grinder, not the architect.
 
+Upstream Ralphy:
+
+- GitHub: https://github.com/michaelshimeles/ralphy
+- npm package: `ralphy-cli`
+- CLI command: `ralphy`
+- Recommended install: `npm install -g ralphy-cli`
+
 ## Good uses
 
 - implementing a scoped feature
@@ -33,9 +40,13 @@ Ralphy is an implementation grinder, not the architect.
 3. Confirm scope is bounded.
 4. Confirm tests/checks exist.
 5. Set MAX_ITERATIONS=3 unless explicitly changed.
-6. Run the loop only after explicit approval.
-7. Run verification after the loop.
-8. Summarize results and remaining risks.
+6. Confirm the `ralphy` command is installed.
+7. Run the loop only after explicit approval.
+8. Use `./scripts/ralphy.sh <prd-file>` for the bounded wrapper.
+9. The wrapper runs `ralphy --prd <prd-file> --max-iterations <n>`.
+10. Prefer `--codex` only when the user explicitly wants Ralphy to use Codex as the engine.
+11. Run verification after the loop.
+12. Summarize results and remaining risks.
 
 ## Stop conditions
 
