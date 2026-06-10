@@ -134,23 +134,3 @@ Edit files under `templates/`. `lp88 init` copies this directory into the target
 To update the vendored code-structure skill, fetch the source raw GitHub file during lp88 package development and commit the resulting `templates/skills/code-structure/SKILL.md`. Do not add runtime fetching to `lp88 init`.
 
 To customize the planning prompt for a project, edit `.codex/prompts/plan.md`. Keep `{{TASK}}` where the task should be inserted. If the placeholder is missing, `lp88 plan` appends the task at the end.
-
-## Publishing Later
-
-Before publishing:
-
-```sh
-npm test
-npm pack --dry-run
-npm publish --access public
-```
-
-The package exposes the CLI with:
-
-```json
-{
-  "bin": {
-    "lp88": "bin/lp88.js"
-  }
-}
-```
