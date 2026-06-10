@@ -1,7 +1,7 @@
 {
   "name": "lp88",
   "version": "0.1.10",
-  "description": "Launchpad-88: bootstrap a Codex/agent workflow into any project.",
+  "description": "Launchpad-88: bootstrap an AI-agent workflow into any project.",
   "type": "module",
   "bin": {
     "lp88": "bin/lp88.js"
@@ -22,6 +22,7 @@
   "keywords": [
     "codex",
     "agents",
+    "ai-agents",
     "cli",
     "workflow",
     "launchpad-88"

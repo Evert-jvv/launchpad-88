@@ -2,15 +2,15 @@
 
 `lp88` stands for **Launchpad-88**.
 
-Launchpad-88 is a small npm CLI that installs a repeatable Codex and coding-agent workflow into any project.
+Launchpad-88 is a small npm CLI that installs a repeatable AI-agent workflow into any project.
 
-It creates the project instructions, Codex prompts, local skills, scripts, and CI guardrails I want in every repo so the next agent starts with the same rules instead of rediscovering them.
+It creates project instructions, reusable prompts, local skills, scripts, and CI guardrails so your configured agent starts with the same rules instead of rediscovering them.
 
 ## Why it exists
 
-Launchpad-88 does not replace Codex. It installs the project instructions and guardrails Codex should use.
+Launchpad-88 does not replace your AI agent. It installs the project instructions and guardrails that Codex, Claude, Gemini, OpenCode, Ralphy, or another configured CLI should use.
 
-- `lp88 plan` prints a Codex-ready planning prompt.
+- `lp88 plan` prints an agent-ready planning prompt.
 - `lp88 audit` runs deterministic local checks.
 - `skills/code-structure/SKILL.md` guides where logic belongs.
 - opensrc is optional for fetching dependency source when package internals matter.
@@ -85,9 +85,9 @@ lp88 --version
 
 `lp88 audit` runs `./scripts/audit.sh`. If the script is missing, run `lp88 init` first.
 
-`lp88 plan "task"` prints a prompt you can paste into an agent. It asks the agent to return a combined PRD and implementation plan that can be saved to `docs/prd/current.md`. It uses `.codex/prompts/plan.md` from the current project when present, otherwise it falls back to lp88's vendored template. It does not require Codex to be installed.
+`lp88 plan "task"` prints a prompt you can paste into an agent. It asks the agent to return a combined PRD and implementation plan that can be saved to `docs/prd/current.md`. It uses `.codex/prompts/plan.md` from the current project when present, otherwise it falls back to lp88's vendored template. It does not require any specific agent to be installed.
 
-`lp88 plan --run "task"` calls a configured AI agent CLI directly and writes the returned PRD and implementation plan to `docs/prd/current.md`. Built-in runners currently support `codex` and `gemini`.
+`lp88 plan --run "task"` calls a configured AI agent CLI directly and writes the returned PRD and implementation plan to `docs/prd/current.md`. Built-in runners currently support `codex`, `claude`, `gemini`, and `opencode`.
 
 `lp88 doctor` checks whether the expected workflow files exist, whether scripts are executable, whether a package manager and git repo are detected, and whether CI is present.
 
@@ -109,13 +109,13 @@ It also reports optional external tools:
 5. Or run `lp88 plan "<task>"` and paste the output into your agent manually.
 6. Review and approve the plan before implementation.
 7. Run `lp88 audit`.
-8. Open Codex and ask it to use AGENTS.md and the relevant skill.
+8. Open your agent, or use `lp88 plan --run`, and ask it to use AGENTS.md and the relevant skill.
 9. Use Greptile/greploop for PR review fixes.
 10. Use Ralphy only for bounded implementation loops after a PRD exists.
 
-## Using With Codex
+## Using With Agents
 
-After initialization, start Codex in the project and point it at the installed files:
+After initialization, start your agent in the project and point it at the installed files:
 
 ```text
 Use AGENTS.md and skills/audit-repo/SKILL.md. Run ./scripts/audit.sh and give me a prioritized improvement plan.
@@ -127,7 +127,7 @@ For planning without calling an agent, run:
 lp88 plan "Improve onboarding flow"
 ```
 
-That prints a Codex-ready prompt like:
+That prints an agent-ready prompt like:
 
 ```text
 Use AGENTS.md, skills/plan-project/SKILL.md, and skills/code-structure/SKILL.md.
@@ -171,7 +171,7 @@ Rules:
 - Prefer small PR-sized changes.
 ```
 
-Paste that output into Codex. Codex should return the plan; it should not start implementing until you approve the plan.
+Paste that output into your agent. The agent should return the plan; it should not start implementing until you approve the plan.
 
 After you approve it, save the returned PRD and implementation plan to:
 

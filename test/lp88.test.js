@@ -95,7 +95,7 @@ test("init skips existing files unless force is used", async () => {
   });
 });
 
-test("plan prints a Codex-ready prompt", async () => {
+test("plan prints an agent-ready prompt", async () => {
   await withTempProject(async (dir) => {
     const result = await runLp88(["plan", "Improve", "onboarding", "flow"], dir);
 

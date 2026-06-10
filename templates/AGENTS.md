@@ -2,7 +2,7 @@
 
 ## Project purpose
 
-This repository is maintained with Codex and other AI coding agents. Agents should plan first, make small changes, run checks, and explain risks before broad refactors.
+This repository is maintained with AI coding agents such as Codex, Claude, Gemini, OpenCode, Cursor, and Ralphy. Agents should plan first, make small changes, run checks, and explain risks before broad refactors.
 
 ## Standard commands
 

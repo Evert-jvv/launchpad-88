@@ -771,7 +771,7 @@ async function offerLp88AgentConfig({ skip, force }) {
     if (process.stdin.isTTY && process.stdout.isTTY) {
       console.log("");
       console.log("No supported lp88 planning agent CLI was detected.");
-      console.log(`Install Codex or Gemini, then edit ${lp88ConfigFile}.`);
+      console.log(`Install Codex, Claude Code, Gemini, or OpenCode, then edit ${lp88ConfigFile}.`);
     }
     return;
   }
@@ -986,16 +986,16 @@ function printNextSteps() {
   console.log("Next:");
   console.log("  lp88 doctor");
   console.log("  lp88 audit");
-  console.log("  codex");
+  console.log("  lp88 plan --run \"Your task\"");
   console.log("");
-  console.log("Suggested Codex prompt:");
+  console.log("Suggested agent prompt:");
   console.log("  Use AGENTS.md and skills/audit-repo/SKILL.md. Run ./scripts/audit.sh and give me a prioritized improvement plan.");
 }
 
 function printHelp() {
   console.log(`lp88
 
-Launchpad-88: bootstrap a Codex/agent workflow into the current project.
+Launchpad-88: bootstrap an AI-agent workflow into the current project.
 
 Usage:
   lp88 init
@@ -1011,7 +1011,7 @@ Usage:
   lp88 --version
 
 Commands:
-  init       Copy AGENTS.md, Codex prompts, skills, scripts, and CI into this project.
+  init       Copy AGENTS.md, prompts, skills, scripts, and CI into this project.
   audit      Run ./scripts/audit.sh.
   plan       Print or run a planning prompt for a task.
   doctor     Check whether the lp88 workflow files are installed.
