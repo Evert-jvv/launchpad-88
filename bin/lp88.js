@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { chmod, copyFile, mkdir, readdir, readFile, stat } from "node:fs/promises";
 import { constants, existsSync } from "node:fs";
 import path from "node:path";
+import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -22,6 +23,7 @@ const requiredFiles = [
   "skills/audit-repo/SKILL.md",
   "skills/code-structure/SKILL.md",
   "skills/greploop/SKILL.md",
+  "skills/opensrc/SKILL.md",
   "skills/ralphy-run/SKILL.md",
   "scripts/setup.sh",
   "scripts/lint.sh",
@@ -29,6 +31,7 @@ const requiredFiles = [
   "scripts/test.sh",
   "scripts/build.sh",
   "scripts/audit.sh",
+  "scripts/opensrc.sh",
   "scripts/ralphy.sh",
   ".github/workflows/ci.yml"
 ];
@@ -40,7 +43,25 @@ const scriptFiles = [
   "scripts/test.sh",
   "scripts/build.sh",
   "scripts/audit.sh",
+  "scripts/opensrc.sh",
   "scripts/ralphy.sh"
+];
+
+const optionalTools = [
+  {
+    label: "opensrc",
+    command: "opensrc",
+    packageName: "opensrc",
+    installArgs: ["install", "-g", "opensrc"],
+    source: "https://github.com/vercel-labs/opensrc"
+  },
+  {
+    label: "Ralphy CLI",
+    command: "ralphy",
+    packageName: "ralphy-cli",
+    installArgs: ["install", "-g", "ralphy-cli"],
+    source: "https://github.com/michaelshimeles/ralphy"
+  }
 ];
 
 async function main() {
@@ -94,17 +115,19 @@ async function getVersion() {
 }
 
 async function init(args) {
-  const unknown = args.filter((arg) => !["--dry-run", "--force"].includes(arg));
+  const allowedOptions = ["--dry-run", "--force", "--no-optional-installs"];
+  const unknown = args.filter((arg) => !allowedOptions.includes(arg));
   if (unknown.length > 0) {
     console.error(`Unknown init option: ${unknown[0]}`);
     console.error("");
-    console.error("Usage: lp88 init [--dry-run] [--force]");
+    console.error("Usage: lp88 init [--dry-run] [--force] [--no-optional-installs]");
     process.exitCode = 1;
     return;
   }
 
   const dryRun = args.includes("--dry-run");
   const force = args.includes("--force");
+  const skipOptionalInstalls = args.includes("--no-optional-installs");
   const targetRoot = process.cwd();
   const files = await listTemplateFiles(templatesRoot);
 
@@ -141,6 +164,7 @@ async function init(args) {
   }
 
   if (!dryRun) {
+    await offerOptionalToolInstalls({ skip: skipOptionalInstalls });
     printNextSteps();
   }
 }
@@ -258,6 +282,13 @@ async function doctor() {
     console.log("ℹ️ Ralphy CLI not installed (optional; install with `npm install -g ralphy-cli`)");
   }
 
+  const opensrcInstalled = await hasCommand("opensrc");
+  if (opensrcInstalled) {
+    console.log("✅ opensrc CLI detected");
+  } else {
+    console.log("ℹ️ opensrc CLI not installed (optional; install with `npm install -g opensrc`)");
+  }
+
   console.log("");
   console.log(importantMissing ? "Needs attention" : "Healthy");
 }
@@ -288,6 +319,89 @@ async function hasCommand(command) {
 
     child.on("error", () => resolve(false));
     child.on("close", (code) => resolve(code === 0));
+  });
+}
+
+async function offerOptionalToolInstalls({ skip }) {
+  if (skip) {
+    return;
+  }
+
+  const missingTools = [];
+  for (const tool of optionalTools) {
+    if (!await hasCommand(tool.command)) {
+      missingTools.push(tool);
+    }
+  }
+
+  if (missingTools.length === 0) {
+    console.log("");
+    console.log("Optional tools detected: opensrc and Ralphy CLI.");
+    return;
+  }
+
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    console.log("");
+    console.log("Optional tools not installed:");
+    for (const tool of missingTools) {
+      console.log(`  ${tool.label}: npm install -g ${tool.packageName}`);
+    }
+    console.log("Run those commands later if you want the optional integrations.");
+    return;
+  }
+
+  console.log("");
+  console.log("Optional tools");
+
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  try {
+    for (const tool of missingTools) {
+      const answer = await rl.question(`Install ${tool.label} now? (npm install -g ${tool.packageName}) [y/N] `);
+      if (!isYes(answer)) {
+        console.log(`Skipped ${tool.label}. Install later with: npm install -g ${tool.packageName}`);
+        continue;
+      }
+
+      await installOptionalTool(tool);
+    }
+  } finally {
+    rl.close();
+  }
+}
+
+function isYes(value) {
+  return ["y", "yes"].includes(value.trim().toLowerCase());
+}
+
+async function installOptionalTool(tool) {
+  console.log(`Installing ${tool.label}...`);
+
+  await new Promise((resolve) => {
+    const child = spawn("npm", tool.installArgs, {
+      cwd: process.cwd(),
+      stdio: "inherit",
+      shell: false
+    });
+
+    child.on("error", (error) => {
+      console.error(`Failed to install ${tool.label}: ${error.message}`);
+      console.error(`Install later with: npm install -g ${tool.packageName}`);
+      resolve();
+    });
+
+    child.on("close", (code) => {
+      if (code === 0) {
+        console.log(`Installed ${tool.label}.`);
+      } else {
+        console.error(`Failed to install ${tool.label} (exit ${code}).`);
+        console.error(`Install later with: npm install -g ${tool.packageName}`);
+      }
+      resolve();
+    });
   });
 }
 
@@ -328,6 +442,7 @@ Usage:
   lp88 init
   lp88 init --dry-run
   lp88 init --force
+  lp88 init --no-optional-installs
   lp88 audit
   lp88 plan "<task>"
   lp88 doctor

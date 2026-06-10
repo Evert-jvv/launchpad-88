@@ -11,6 +11,7 @@ It creates the project instructions, Codex prompts, local skills, scripts, and C
 - `lp88 plan` prints a Codex-ready planning prompt.
 - `lp88 audit` runs deterministic local checks.
 - `skills/code-structure/SKILL.md` guides where logic belongs.
+- opensrc is optional for fetching dependency source when package internals matter.
 - Greploop is for bounded PR review and CI fix loops.
 - Ralphy is optional and should only be used after a clear PRD or issue exists.
 
@@ -20,6 +21,17 @@ Run without installing:
 
 ```sh
 npx lp88 init
+```
+
+During interactive init, lp88 offers to install optional external tools:
+
+- `opensrc`, from https://github.com/vercel-labs/opensrc
+- `ralphy-cli`, from https://github.com/michaelshimeles/ralphy
+
+Skip those prompts with:
+
+```sh
+npx lp88 init --no-optional-installs
 ```
 
 Or install globally:
@@ -51,6 +63,7 @@ lp88 --help
 npx lp88 init
 npx lp88 init --dry-run
 npx lp88 init --force
+npx lp88 init --no-optional-installs
 npx lp88 audit
 npx lp88 plan "<task>"
 npx lp88 doctor
@@ -66,6 +79,13 @@ lp88 --version
 `lp88 plan "task"` prints a prompt you can paste into Codex. It uses `.codex/prompts/plan.md` from the current project when present, otherwise it falls back to lp88's vendored template. It does not require Codex to be installed.
 
 `lp88 doctor` checks whether the expected workflow files exist, whether scripts are executable, whether a package manager and git repo are detected, and whether CI is present.
+
+It also reports optional external tools:
+
+```text
+✅ opensrc CLI detected
+ℹ️ Ralphy CLI not installed (optional; install with `npm install -g ralphy-cli`)
+```
 
 ## Recommended Workflow
 
@@ -127,6 +147,30 @@ Use `skills/greploop/SKILL.md` when a PR has Greptile, CI, or reviewer feedback.
 - run relevant tests
 - stop after 3 iterations
 - summarize what changed and what remains
+
+## opensrc
+
+opensrc is an optional external tool from https://github.com/vercel-labs/opensrc. It gives coding agents access to dependency source code when public docs and type definitions are not enough.
+
+`lp88` does not depend on opensrc directly. During interactive `lp88 init`, you can choose to install it. To install manually:
+
+```sh
+npm install -g opensrc
+```
+
+Then run:
+
+```sh
+./scripts/opensrc.sh zod
+```
+
+The wrapper calls:
+
+```sh
+opensrc path "$TARGET"
+```
+
+Use `skills/opensrc/SKILL.md` when dependency internals are needed for implementation, debugging, or review.
 
 ## Ralphy / Ralph Wiggum
 

@@ -49,6 +49,7 @@ test("init creates templates and executable scripts", async () => {
     assert.match(result.stdout, /Created: AGENTS\.md/);
     assert.match(result.stdout, /lp88 installed the agent workflow/);
     assert.equal(existsSync(path.join(dir, "skills", "code-structure", "SKILL.md")), true);
+    assert.equal(existsSync(path.join(dir, "skills", "opensrc", "SKILL.md")), true);
 
     const mode = (await stat(path.join(dir, "scripts", "audit.sh"))).mode;
     assert.equal(Boolean(mode & 0o111), true);
@@ -63,6 +64,17 @@ test("init installs ralphy wrapper with upstream command", async () => {
 
     assert.match(script, /npm install -g ralphy-cli/);
     assert.match(script, /ralphy --prd "\$TASK_FILE" --max-iterations "\$MAX_ITERATIONS"/);
+  });
+});
+
+test("init installs opensrc wrapper with upstream command", async () => {
+  await withTempProject(async (dir) => {
+    await runLp88(["init"], dir);
+
+    const script = await readFile(path.join(dir, "scripts", "opensrc.sh"), "utf8");
+
+    assert.match(script, /npm install -g opensrc/);
+    assert.match(script, /opensrc path "\$TARGET"/);
   });
 });
 
@@ -161,6 +173,7 @@ test("doctor reports healthy after init in a git project", async () => {
     assert.match(result.stdout, /✅ AGENTS\.md/);
     assert.match(result.stdout, /✅ Package manager detected: npm/);
     assert.match(result.stdout, /Ralphy CLI/);
+    assert.match(result.stdout, /opensrc CLI/);
     assert.match(result.stdout, /Healthy/);
   });
 });

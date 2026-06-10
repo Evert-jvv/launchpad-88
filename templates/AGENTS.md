@@ -21,6 +21,7 @@ Use these skills when appropriate:
 - `skills/audit-repo/SKILL.md` for auditing an existing codebase.
 - `skills/code-structure/SKILL.md` for deciding what belongs in actions, services, utilities, and routes/controllers.
 - `skills/greploop/SKILL.md` for bounded PR review and CI fix loops.
+- `skills/opensrc/SKILL.md` for fetching package source code when dependency internals matter.
 - `skills/ralphy-run/SKILL.md` for bounded multi-agent implementation loops after a clear PRD exists.
 
 ## Code structure rules
@@ -83,6 +84,7 @@ Group findings as:
 - Do not delete large sections without explaining why.
 - Do not change authentication, authorization, payment, data deletion, migrations, encryption, secrets, or security-sensitive code without explicit approval.
 - Do not introduce new dependencies unless justified.
+- Do not fetch external source code with opensrc unless package internals are needed for the task.
 - Do not ignore failing tests.
 - Do not make unrelated refactors.
 - Prefer PR-sized changes over large rewrites.
