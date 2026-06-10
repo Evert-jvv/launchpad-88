@@ -69,7 +69,7 @@ async function main() {
     }
 
     if (command === "plan") {
-      plan(args.slice(1));
+      await plan(args.slice(1));
       return;
     }
 
@@ -198,35 +198,30 @@ async function audit() {
   });
 }
 
-function plan(args) {
+async function plan(args) {
   const task = args.join(" ").trim();
 
   if (!task) {
-    console.log('Usage: lp88 plan "Add billing dashboard"');
+    console.log('Usage: lp88 plan "<task>"');
+    console.log('Example: lp88 plan "Improve onboarding flow"');
     return;
   }
 
-  console.log(`Use AGENTS.md, skills/plan-project/SKILL.md, and skills/code-structure/SKILL.md.
+  const prompt = await loadPlanPrompt();
+  const rendered = prompt.includes("{{TASK}}")
+    ? prompt.replaceAll("{{TASK}}", task)
+    : `${prompt.trimEnd()}\n\nTask:\n${task}`;
 
-Plan the following task:
+  console.log(rendered.trimEnd());
+}
 
-${task}
+async function loadPlanPrompt() {
+  const localPrompt = path.join(process.cwd(), ".codex", "prompts", "plan.md");
+  if (existsSync(localPrompt)) {
+    return readFile(localPrompt, "utf8");
+  }
 
-Return:
-- goal
-- assumptions
-- architecture impact
-- implementation steps
-- files likely to change
-- tests required
-- risks
-- recommended first PR
-
-Rules:
-- Do not implement yet.
-- Ask only blocking questions.
-- Prefer small PR-sized changes.
-- Follow the code-structure skill when deciding what belongs in actions, services, utilities, and routes/controllers.`);
+  return readFile(path.join(templatesRoot, ".codex", "prompts", "plan.md"), "utf8");
 }
 
 async function doctor() {
@@ -316,7 +311,7 @@ Usage:
   lp88 init --dry-run
   lp88 init --force
   lp88 audit
-  lp88 plan "Add billing dashboard"
+  lp88 plan "<task>"
   lp88 doctor
   lp88 help
   lp88 --help
@@ -332,7 +327,7 @@ Commands:
 Examples:
   npx lp88 init
   lp88 doctor
-  lp88 plan "Add billing dashboard"
+  lp88 plan "Improve onboarding flow"
   lp88 audit`);
 }
 

@@ -71,12 +71,47 @@ test("init skips existing files unless force is used", async () => {
 
 test("plan prints a Codex-ready prompt", async () => {
   await withTempProject(async (dir) => {
-    const result = await runLp88(["plan", "Add", "billing", "dashboard"], dir);
+    const result = await runLp88(["plan", "Improve", "onboarding", "flow"], dir);
 
     assert.equal(result.code, 0);
-    assert.match(result.stdout, /Plan the following task:/);
-    assert.match(result.stdout, /Add billing dashboard/);
+    assert.match(result.stdout, /Task:/);
+    assert.match(result.stdout, /Improve onboarding flow/);
     assert.match(result.stdout, /recommended first PR/);
+  });
+});
+
+test("plan without a task prints generic usage", async () => {
+  await withTempProject(async (dir) => {
+    const result = await runLp88(["plan"], dir);
+
+    assert.equal(result.code, 0);
+    assert.match(result.stdout, /Usage: lp88 plan "<task>"/);
+    assert.match(result.stdout, /Example: lp88 plan "Improve onboarding flow"/);
+    assert.doesNotMatch(result.stdout, /Add billing dashboard/);
+  });
+});
+
+test("plan uses the project prompt template when present", async () => {
+  await withTempProject(async (dir) => {
+    await mkdir(path.join(dir, ".codex", "prompts"), { recursive: true });
+    await writeFile(path.join(dir, ".codex", "prompts", "plan.md"), "Custom plan:\n{{TASK}}\n");
+
+    const result = await runLp88(["plan", "Ship", "search"], dir);
+
+    assert.equal(result.code, 0);
+    assert.equal(result.stdout, "Custom plan:\nShip search\n");
+  });
+});
+
+test("plan appends the task when a project prompt has no placeholder", async () => {
+  await withTempProject(async (dir) => {
+    await mkdir(path.join(dir, ".codex", "prompts"), { recursive: true });
+    await writeFile(path.join(dir, ".codex", "prompts", "plan.md"), "Custom plan without placeholder\n");
+
+    const result = await runLp88(["plan", "Ship", "search"], dir);
+
+    assert.equal(result.code, 0);
+    assert.equal(result.stdout, "Custom plan without placeholder\n\nTask:\nShip search\n");
   });
 });
 

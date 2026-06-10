@@ -19,7 +19,7 @@ It creates the project instructions, Codex prompts, local skills, scripts, and C
 ```sh
 npx lp88 init
 lp88 doctor
-lp88 plan "Add billing dashboard"
+lp88 plan "Improve onboarding flow"
 lp88 audit
 ```
 
@@ -37,7 +37,7 @@ npx lp88 init
 npx lp88 init --dry-run
 npx lp88 init --force
 npx lp88 audit
-npx lp88 plan "Add billing dashboard"
+npx lp88 plan "<task>"
 npx lp88 doctor
 npx lp88 help
 lp88 --help
@@ -48,7 +48,7 @@ lp88 --version
 
 `lp88 audit` runs `./scripts/audit.sh`. If the script is missing, run `lp88 init` first.
 
-`lp88 plan "task"` prints a prompt you can paste into Codex. It does not require Codex to be installed.
+`lp88 plan "task"` prints a prompt you can paste into Codex. It uses `.codex/prompts/plan.md` from the current project when present, otherwise it falls back to lp88's vendored template. It does not require Codex to be installed.
 
 `lp88 doctor` checks whether the expected workflow files exist, whether scripts are executable, whether a package manager and git repo are detected, and whether CI is present.
 
@@ -73,7 +73,7 @@ Use AGENTS.md and skills/audit-repo/SKILL.md. Run ./scripts/audit.sh and give me
 For planning:
 
 ```sh
-lp88 plan "Add billing dashboard"
+lp88 plan "Improve onboarding flow"
 ```
 
 Then paste the generated prompt into Codex.
@@ -133,6 +133,8 @@ Edit files under `templates/`. `lp88 init` copies this directory into the target
 
 To update the vendored code-structure skill, fetch the source raw GitHub file during lp88 package development and commit the resulting `templates/skills/code-structure/SKILL.md`. Do not add runtime fetching to `lp88 init`.
 
+To customize the planning prompt for a project, edit `.codex/prompts/plan.md`. Keep `{{TASK}}` where the task should be inserted. If the placeholder is missing, `lp88 plan` appends the task at the end.
+
 ## Publishing Later
 
 Before publishing:
@@ -148,7 +150,7 @@ The package exposes the CLI with:
 ```json
 {
   "bin": {
-    "lp88": "./bin/lp88.js"
+    "lp88": "bin/lp88.js"
   }
 }
 ```

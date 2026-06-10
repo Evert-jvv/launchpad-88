@@ -1,10 +1,10 @@
 {
   "name": "lp88",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Bootstrap a Codex/agent workflow into any project.",
   "type": "module",
   "bin": {
-    "lp88": "./bin/lp88.js"
+    "lp88": "bin/lp88.js"
   },
   "scripts": {
     "test": "node --test",
